@@ -70,7 +70,7 @@ while True:
 		# how much has it changed since the last read?
 		pot_adjust = abs(trim_pot - last_read)
 		if DEBUG:
-			print ("trim_pot : ",trim_pot)
+			print "trim_pot : ",trim_pot;
 			# print "pot_adjust:", pot_adjust
 			# print "last_read", last_read
 		if( pot_adjust > tolerance ):

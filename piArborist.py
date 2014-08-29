@@ -70,8 +70,8 @@ while True:
 		# how much has it changed since the last read?
 		pot_adjust = abs(trim_pot - last_read)
 
-		# if DEBUG:
-		#         print "trim_pot:", trim_pot
+		if DEBUG:
+		        print "trim_pot:", trim_pot
 		#         print "pot_adjust:", pot_adjust
 		#         print "last_read", last_read
 
@@ -103,4 +103,4 @@ while True:
 		#         last_read = trim_pot
 
 		# hang out and do nothing for a half second
-		time.sleep(0.5)
+		time.sleep(0.1)
