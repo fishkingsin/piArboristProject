@@ -56,7 +56,11 @@ GPIO.setup(SPICS, GPIO.OUT)
 
 # 10k trim pot connected to adc #0
 potentiometer_adc = 0;
-
+num_sample = 20
+sample_list=[0 for i in range(num_sample)]
+for i in range(num_sample):
+	sample_list[i] = 0;
+sample_index = 0;
 last_read = 0       # this keeps track of the last potentiometer value
 tolerance = 5       # to keep from being jittery we'll only change
 					# volume when the pot has moved more than 5 'counts'
@@ -69,8 +73,17 @@ while True:
 		trim_pot = readadc(potentiometer_adc, SPICLK, SPIMOSI, SPIMISO, SPICS)
 		# how much has it changed since the last read?
 		pot_adjust = abs(trim_pot - last_read)
-		if DEBUG:
-			print "trim_pot : ",trim_pot;
+		sample_list[sample_index] = trim_pot;
+		sample_index+=1
+		if(sample_index==num_sample):
+			sample_sum = 0;
+			for i in range(num_sample):
+				sample_sum+=sample_list[i];
+			sample_average = sample_sum/num_sample;
+			print "sample_average : ",sample_average;
+			sample_index %= num_sample;
+		# if DEBUG:
+			# print "trim_pot : ",trim_pot;
 			# print "pot_adjust:", pot_adjust
 			# print "last_read", last_read
 		if( pot_adjust > tolerance ):
@@ -79,4 +92,4 @@ while True:
 				last_read = trim_pot
 
 		# hang out and do nothing for a half second
-		time.sleep(0.1)
+		time.sleep(0.01)
