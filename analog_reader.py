@@ -3,9 +3,13 @@ import time
 import os
 import RPi.GPIO as GPIO
 import threading
-
+import socket
 GPIO.setmode(GPIO.BCM)
-DEBUG = 0
+DEBUG = 1
+
+UDP_IP = "james.local"
+UDP_PORT = 5005
+MESSAGE = "Hello, World!"
 
 # read SPI data from MCP3008 chip, 8 possible adc's (0 thru 7)
 def readadc(adcnum, clockpin, mosipin, misopin, cspin):
@@ -65,12 +69,20 @@ sample_index = 0;
 last_read = 0       # this keeps track of the last potentiometer value
 tolerance = 5       # to keep from being jittery we'll only change
 					# volume when the pot has moved more than 5 'counts'
+
+#udp
+sock = socket.socket(socket.AF_INET, # Internet
+                     socket.SOCK_DGRAM) # UDP
+
 def cal_average(_sample_list , _num_sample):
 	sample_sum = 0;
 	for i in range(_num_sample):
 		sample_sum+=_sample_list[i];
 	sample_average = sample_sum/_num_sample;
-	print ("sample_average : ",sample_average);
+	if DEBUG:
+		msg = ("sample_average : %s" % sample_average)
+		print (msg);
+		sock.sendto(msg, (UDP_IP, UDP_PORT))
 
 while True:
 	# we'll assume that the pot didn't move
@@ -88,7 +100,9 @@ while True:
 		t.start()
 		sample_index %= num_sample;
 	if DEBUG:
-		print ("trim_pot : ",trim_pot);
+		msg = ("trim_pot : %s" %trim_pot)
+		sock.sendto(msg, (UDP_IP, UDP_PORT))
+		print (msg);
 		# print "pot_adjust:", pot_adjust
 		# print "last_read", last_read
 	if( pot_adjust > tolerance ):

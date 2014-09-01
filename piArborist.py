@@ -2,10 +2,13 @@
 import time
 import os
 import RPi.GPIO as GPIO
+import threading,queue
+import argparse
+import socket
 
 GPIO.setmode(GPIO.BCM)
-DEBUG = 1
-
+DEBUG = 0
+SOCKET = 0
 # read SPI data from MCP3008 chip, 8 possible adc's (0 thru 7)
 def readadc(adcnum, clockpin, mosipin, misopin, cspin):
 		if ((adcnum > 7) or (adcnum < 0)):
@@ -58,10 +61,35 @@ GPIO.setup(SPICS, GPIO.OUT)
 potentiometer_adc = 0;
 
 last_read = 0       # this keeps track of the last potentiometer value
-tolerance = 5       # to keep from being jittery we'll only change
+tolerance = 10       # to keep from being jittery we'll only change
 					# volume when the pot has moved more than 5 'counts'
+#calculate average
 
-while True:
+
+def cal_average(_sample_list , _num_sample , _q ):
+	sample_sum = 0;
+	for i in range(_num_sample):
+		sample_sum+=_sample_list[i];
+	sample_average = sample_sum/_num_sample;
+	_q.put(sample_average) 
+
+def main():
+	num_sample = 50
+	sample_list=[0 for i in range(num_sample)]
+	for i in range(num_sample):
+		sample_list[i] = 0;
+	sample_index = 0;
+	parser = argparse.ArgumentParser()
+	parser.add_argument('-i', '--ip', help="host ip", default="127.0.0.1", type=str)
+	parser.add_argument('-p', '--port', help="host port", default=5005, type=int)
+	
+	args = parser.parse_args()
+	sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+	UDP_IP=args.ip
+	UDP_PORT=args.port
+	print ("UDP target IP:", UDP_IP)
+	print ("UDP target port:", UDP_PORT)
+	while True:
 		# we'll assume that the pot didn't move
 		trim_pot_changed = False
 
@@ -70,8 +98,27 @@ while True:
 		# how much has it changed since the last read?
 		pot_adjust = abs(trim_pot - last_read)
 
+		sample_list[sample_index] = trim_pot;
+		sample_index+=1
+		if(sample_index==num_sample):
+			q = queue.Queue()
+			t = threading.Thread(target=cal_average, args = (sample_list , num_sample, q))
+			t.daemon = True
+			t.start()
+			result=round(q.get())
+			# msg =  "average:%d,"%result
+			# msg+="samples:"
+			# if SOCKET:
+				# for i in range(num_sample):
+					# msg+="%d,"%sample_list[i];
+				# sock.sendto(msg.encode(), (UDP_IP, UDP_PORT))
+			# print(msg);
+
+		sample_index %= num_sample;
+		msg =  "%d"%trim_pot
+		sock.sendto(msg.encode(), (UDP_IP, UDP_PORT))
 		if DEBUG:
-		        print "trim_pot:", trim_pot
+			print(msg)
 		#         print "pot_adjust:", pot_adjust
 		#         print "last_read", last_read
 
@@ -81,20 +128,22 @@ while True:
 		# if DEBUG:
 		#         print "trim_pot_changed", trim_pot_changed
 
-		if(trim_pot>500):
-			trim_pot = 0;
-		else:
-			trim_pot = 1000;
+		
+		# 	trim_pot = 0;
+		# else:
+		# 	trim_pot = 1000;
 
 		if ( trim_pot_changed ):
-				set_volume = trim_pot / 10.24           # convert 10bit adc0 (0-1024) trim pot read into 0-100 volume level
-				set_volume = round(set_volume)          # round out decimal value
-				set_volume = int(set_volume)            # cast volume as integer
-
-				print 'Volume = {volume}%' .format(volume = set_volume)
-				set_vol_cmd = 'sudo amixer cset numid=1 -- {volume}% > /dev/null' .format(volume = set_volume)
-				os.system(set_vol_cmd)  # set volume
-
+			set_volume = trim_pot / 10.24           # convert 10bit adc0 (0-1024) trim pot read into 0-100 volume level
+			set_volume = round(set_volume)          # round out decimal value
+			set_volume = int(set_volume)            # cast volume as integer
+			# if DEBUG:
+				# print ('Volume = {volume}%' .format(volume = set_volume))
+			# set_vol_cmd = 'sudo amixer cset numid=1 -- {volume}% > /dev/null' .format(volume = set_volume)
+			# os.system(set_vol_cmd)  # set volume
+			if(trim_pot>800):
+				if DEBUG:
+					print ("touched")
 		#         if DEBUG:
 		#                 print "set_volume", set_volume
 		#                 print "tri_pot_changed", set_volume
@@ -103,4 +152,7 @@ while True:
 		#         last_read = trim_pot
 
 		# hang out and do nothing for a half second
-		time.sleep(0.1)
+		time.sleep(0.01)
+if __name__ == "__main__":
+
+	main()
