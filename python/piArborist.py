@@ -9,6 +9,7 @@ import socket
 GPIO.setmode(GPIO.BCM)
 DEBUG = 0
 SOCKET = 0
+DO_AVERAGE = 0
 # read SPI data from MCP3008 chip, 8 possible adc's (0 thru 7)
 def readadc(adcnum, clockpin, mosipin, misopin, cspin):
 		if ((adcnum > 7) or (adcnum < 0)):
@@ -74,6 +75,7 @@ def cal_average(_sample_list , _num_sample , _q ):
 	_q.put(sample_average) 
 
 def main():
+	sleeptime = 0.02
 	num_sample = 50
 	sample_list=[0 for i in range(num_sample)]
 	for i in range(num_sample):
@@ -87,6 +89,7 @@ def main():
 	sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 	UDP_IP=args.ip
 	UDP_PORT=args.port
+	__average = 0
 	print ("UDP target IP:", UDP_IP)
 	print ("UDP target port:", UDP_PORT)
 	while True:
@@ -97,15 +100,16 @@ def main():
 		trim_pot = readadc(potentiometer_adc, SPICLK, SPIMOSI, SPIMISO, SPICS)
 		# how much has it changed since the last read?
 		pot_adjust = abs(trim_pot - last_read)
-
-		sample_list[sample_index] = trim_pot;
-		sample_index+=1
-		if(sample_index==num_sample):
-			q = queue.Queue()
-			t = threading.Thread(target=cal_average, args = (sample_list , num_sample, q))
-			t.daemon = True
-			t.start()
-			result=round(q.get())
+		if DO_AVERAGE:
+			sample_list[sample_index] = trim_pot;
+			sample_index+=1
+			if(sample_index==num_sample):
+				q = queue.Queue()
+				t = threading.Thread(target=cal_average, args = (sample_list , num_sample, q))
+				t.daemon = True
+				t.start()
+				__average=round(q.get())
+			
 			# msg =  "average:%d,"%result
 			# msg+="samples:"
 			# if SOCKET:
@@ -114,9 +118,14 @@ def main():
 				# sock.sendto(msg.encode(), (UDP_IP, UDP_PORT))
 			# print(msg);
 
-		sample_index %= num_sample;
+			sample_index %= num_sample;
 		msg =  "%d"%trim_pot
-		sock.sendto(msg.encode(), (UDP_IP, UDP_PORT))
+		my_bytes = bytearray()
+		
+		my_bytes.append(trim_pot & 0xFF)
+		my_bytes.append((trim_pot >> 8 )& 0xFF)
+		
+		sock.sendto(my_bytes, (UDP_IP, UDP_PORT))
 		if DEBUG:
 			print(msg)
 		#         print "pot_adjust:", pot_adjust
@@ -141,7 +150,7 @@ def main():
 				# print ('Volume = {volume}%' .format(volume = set_volume))
 			# set_vol_cmd = 'sudo amixer cset numid=1 -- {volume}% > /dev/null' .format(volume = set_volume)
 			# os.system(set_vol_cmd)  # set volume
-			if(trim_pot>800):
+			if(trim_pot>500):
 				if DEBUG:
 					print ("touched")
 		#         if DEBUG:
@@ -152,7 +161,7 @@ def main():
 		#         last_read = trim_pot
 
 		# hang out and do nothing for a half second
-		time.sleep(0.01)
+		time.sleep(sleeptime)
 if __name__ == "__main__":
 
 	main()

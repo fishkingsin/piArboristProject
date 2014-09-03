@@ -19,6 +19,14 @@ void testApp::setup(){
 	soundPlayer.setLoop(true);
 	soundPlayer.play(); 
 	ofLogVerbose() << "didLoadSound: " << didLoadSound;
+
+	//we run at 60 fps!
+	ofSetVerticalSync(true);
+
+	//setup the server to listen on 11999
+	TCP.setup(11999);
+	//optionally set the delimiter to something else.  The delimter in the client and the server have to be the same, default being [/TCP]
+	TCP.setMessageDelimiter("[/TCP]");
 }
 
 
@@ -37,7 +45,30 @@ void testApp::update(){
 	info << "changeAmount: "		<< controller.changeAmount		<< "\n";
 	info << "fps: "					<< ofToString(ofGetFrameRate())		<< "\n";
 	info << "currentSoundSpeed: "	<< ofToString(currentSoundSpeed)	<< "\n";
-	ofLogNotice() << info.str();
+	// ofLogNotice() << info.str();
+
+	//for each client lets send them a message letting them know what port they are connected on
+	for(unsigned int i = 0; i < (unsigned int)TCP.getLastID(); i++){
+
+		if( !TCP.isClientConnected(i) )continue;
+		//we only want to update the text we have recieved there is data
+		string str = TCP.receive(i);
+		//protocol
+		char byteToSend [6];
+		
+		byteToSend[0] = controller.lastChannel0Value & 0xff;
+		byteToSend[1] = (controller.lastChannel0Value  >> 8)& 0xFF;
+		byteToSend[2] = controller.channel0Value & 0xff;
+		byteToSend[3] = (controller.channel0Value  >> 8)& 0xFF;
+		byteToSend[4] = controller.changeAmount & 0xff;
+		byteToSend[5] = (controller.changeAmount   >> 8)& 0xFF;
+		
+		if(str=="a")
+		{
+			TCP.send(i, info.str());
+		}
+	}
+	
 	
 }
 
