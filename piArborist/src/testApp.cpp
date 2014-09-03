@@ -65,7 +65,7 @@ void testApp::update(){
 		
 		if(str=="a")
 		{
-			TCP.send(i, info.str());
+			TCP.sendRawMsg(i, byteToSend , 6);
 		}
 	}
 	
