@@ -8,6 +8,8 @@
 #include "ofMain.h"
 #include "mcp3008Controller.h"
 #include "ofxNetwork.h"
+
+#include "ofxAvahiClientService.h"
 class testApp : public ofBaseApp{
 
 	public:
@@ -32,5 +34,7 @@ class testApp : public ofBaseApp{
 	float currentSoundSpeed;
 
 	ofxTCPServer TCP;
+
+	ofxAvahiClientService service;
 };
 

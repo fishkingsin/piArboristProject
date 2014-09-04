@@ -1,7 +1,7 @@
 #include "ofApp.h"
 int width = 0;
 int height = 0;
-string host = "10.0.1.17";
+
 float lopass(float input, float cutoff , vector<int>&outputs) {
     float lo_pass_output= outputs[0]+ (cutoff*(input-outputs[0]));
     outputs[0]= lo_pass_output;
@@ -14,7 +14,7 @@ float hipass(float input, float cutoff, vector<int>&outputs) {
     return(hi_pass_output);
 }
 
-float average(vector<int>&inputs , vector<ofPoint>&outputs )
+float average(vector<int>&inputs , vector<int>&outputs )
 {
     if(outputs.size()>width)
     {
@@ -27,9 +27,9 @@ float average(vector<int>&inputs , vector<ofPoint>&outputs )
         average += inputs[i];
     }
     average/=inputs.size();
-    float x= outputs.size();
+//    float x= outputs.size();
     float y= ofMap(  average,0,1024,height-10,10);
-    outputs.push_back(ofPoint(x,y));
+    outputs.push_back(y);
     return average;
 }
 //--------------------------------------------------------------
@@ -40,13 +40,18 @@ void ofApp::setup(){
     ofSetVerticalSync(true);
     ofSetFrameRate(60);
     
+    ofAddListener(ofxBonjour::Events().onServicesDiscovered, this, &ofApp::discoveredServices);
+    ofAddListener(ofxBonjour::Events().onServiceDiscovered, this, &ofApp::gotServiceData );
+    bonjourClient.discover("_ecs._tcp.");
+    port = 11999;
     //create the socket and bind to port 11999
 //    udpConnection.Create();
 //    udpConnection.Bind(5005);
 //    udpConnection.SetNonBlocking(true);
     //are we connected to the server - if this fails we
 	//will check every few seconds to see if the server exists
-	weConnected = tcpClient.setup(host, 11999);
+    weConnected = false;
+//	weConnected = tcpClient.setup(host, port);
 	//optionally set the delimiter to something else.  The delimter in the client and the server have to be the same
 	tcpClient.setMessageDelimiter("[/TCP]");
 	
@@ -163,12 +168,15 @@ void ofApp::update(){
                 }
                 
                 float x,y;
-                x=points.size();
+//                x=points.size();
                 int value = channel0Value;
+                
                 inputsample.push_back(value);
-                ofLogVerbose() << value;
+                //ofLogVerbose() << value;
                 y= ofMap(  value,0,1024,ofGetHeight()-10,10);
-                points.push_back(ofPoint(x,y));
+                maxValue = (int)max(y,(float)maxValue);
+                minValue = (int)min(y,(float)minValue);
+                points.push_back(y);
                 
                 if(highpass_sample.size()>SAMPLE_SIZE)
                 {
@@ -214,7 +222,7 @@ void ofApp::update(){
         deltaTime = ofGetElapsedTimeMillis() - connectTime;
         
         if( deltaTime > 5000 ){
-            weConnected = tcpClient.setup(host, 11999);
+            weConnected = tcpClient.setup(host, port);
             connectTime = ofGetElapsedTimeMillis();
         }
     }
@@ -224,21 +232,21 @@ void ofApp::update(){
 void ofApp::draw(){
     ofPushStyle();
     ofFill();
-    ofSetHexColor(0xFFFFFF);
-    ofRect(0,0,200,30);
+    ofSetHexColor(0xF0F0F0);
+    ofRect(0,0,width,height);
     ofPopStyle();
     
     ofPushStyle();
     ofSetHexColor(0x101010);
     ofDrawBitmapString(message, 10, 20);
     for(unsigned int i=1;i<points.size();i++){
-        ofLine(i-1,points[i-1].y,i,points[i].y);
+        ofLine(i-1,points[i-1],i,points[i]);
     }
     ofPopStyle();
     ofPushStyle();
     ofSetColor(ofColor::green);
     for(unsigned int i=1;i<average_points.size();i++){
-        ofLine(i-1,average_points[i-1].y,i,average_points[i].y);
+        ofLine(i-1,average_points[i-1],i,average_points[i]);
     }
     ofPopStyle();
     
@@ -246,7 +254,7 @@ void ofApp::draw(){
     ofPushStyle();
     ofSetColor(ofColor::red);
     for(unsigned int i=1;i<average_hi_points.size();i++){
-        ofLine(i-1,average_hi_points[i-1].y,i,average_hi_points[i].y);
+        ofLine(i-1,average_hi_points[i-1],i,average_hi_points[i]);
     }
     ofPopStyle();
     
@@ -254,9 +262,24 @@ void ofApp::draw(){
     ofPushStyle();
     ofSetColor(ofColor::blue);
     for(unsigned int i=1;i<average_lo_points.size();i++){
-        ofLine(i-1,average_lo_points[i-1].y,i,average_lo_points[i].y);
+        ofLine(i-1,average_lo_points[i-1],i,average_lo_points[i]);
     }
     ofPopStyle();
+    
+    ofPushStyle();
+    ofSetColor(ofColor::purple);
+    ofLine(0, minValue, width, minValue);
+    ofPopStyle();
+    
+    ofPushStyle();
+    ofSetColor(ofColor::yellow);
+    ofLine(0, maxValue, width, maxValue);
+    ofPopStyle();
+    
+    if(!weConnected)
+    {
+        ofDrawBitmapString("Connecting",width*0.5,height*0.5);
+    }
 }
 
 //--------------------------------------------------------------
@@ -302,4 +325,19 @@ void ofApp::gotMessage(ofMessage msg){
 //--------------------------------------------------------------
 void ofApp::dragEvent(ofDragInfo dragInfo){ 
 
+}
+//--------------------------------------------------------------
+void ofApp::discoveredServices( vector<NSNetService*> & services ){
+    for (int i=0; i<services.size(); i++){
+        cout<< [services[i].description cStringUsingEncoding:NSUTF8StringEncoding] << endl;
+    }
+}
+
+//--------------------------------------------------------------
+void ofApp::gotServiceData( Service & service ){
+    cout<< service.ipAddress << ":" << service.port << endl;
+    if(service.ipAddress != "0.0.0.0")
+    {
+        host = service.ipAddress;
+    }
 }

@@ -3,5 +3,6 @@
 
 # ofxXmlSettings
 ofxNetwork
+ofxAvahiClient
 #ofxOpenCv
 # ofxOsc

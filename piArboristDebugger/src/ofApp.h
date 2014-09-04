@@ -2,7 +2,9 @@
 
 #include "ofMain.h"
 #include "ofxNetwork.h"
+#include "ofxBonjour.h"
 #define SAMPLE_SIZE 10
+using namespace ofxBonjour;
 class ofApp : public ofBaseApp , ofThread{
 
 	public:
@@ -29,14 +31,22 @@ class ofApp : public ofBaseApp , ofThread{
     ofTrueTypeFont  mono;
     ofTrueTypeFont  monosm;
     
-    vector<ofPoint> points;
-    vector<ofPoint> average_points;
-    vector<ofPoint> average_hi_points;
-    vector<ofPoint> average_lo_points;
+    vector<int> points;
+    vector<int> average_points;
+    vector<int> average_hi_points;
+    vector<int> average_lo_points;
     vector<int> inputsample;
     vector<int> highpass_sample;
     vector<int> lowpass_sample;
     string message;
     
+    //bonjour
+    void discoveredServices( vector<NSNetService*> & services );
+    void gotServiceData( Service & service );
     
+    Client bonjourClient;
+    string host;
+    int port;
+    int maxValue;
+    int minValue;
 };

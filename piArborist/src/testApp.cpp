@@ -12,7 +12,8 @@
 
 //--------------------------------------------------------------
 void testApp::setup(){
-	ofSetLogLevel(OF_LOG_NOTICE);
+	ofSetLogLevel(OF_LOG_SILENT);
+	service.start("piArborist", "_ecs._tcp", 1234);
     currentSoundSpeed = 1.0;
 	isReady = controller.setup();
 	bool didLoadSound = soundPlayer.loadSound("sounds/Heartbeat-SoundBible.com-1259974459.wav");
